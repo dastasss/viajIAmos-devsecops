@@ -108,3 +108,7 @@ python tests/smoke_test.py --base http://localhost:18000   # (SMOKE_TIMEOUT=25 s
 ## Licencia
 
 MIT — ver [LICENSE](LICENSE).
+
+---
+
+**Creado por Daniel Amrin** — Analista Programador Full Stack | Python · Django · FastAPI | JR Cloud
