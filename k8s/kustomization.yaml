@@ -1,0 +1,45 @@
+# Kustomize: aplica todo el stack con un solo comando:
+#   kubectl apply -k k8s/
+# Para cambiar el tag de las imágenes en CI:
+#   kubectl kustomize k8s/ | kubectl apply -f -   (con imágenes reescritas por CI)
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: viajiamos
+resources:
+  - namespace.yaml
+  - configmaps/gateway-config.yaml
+  - configmaps/booking-config.yaml
+  - configmaps/payment-config.yaml
+  - configmaps/driver-config.yaml
+  - configmaps/realtime-config.yaml
+  - configmaps/ai-config.yaml
+  - secrets/ai-secret.yaml
+  - deployments/gateway-deployment.yaml
+  - deployments/booking-deployment.yaml
+  - deployments/payment-deployment.yaml
+  - deployments/driver-deployment.yaml
+  - deployments/realtime-deployment.yaml
+  - deployments/ai-deployment.yaml
+  - services/gateway-service.yaml
+  - services/booking-service.yaml
+  - services/payment-service.yaml
+  - services/driver-service.yaml
+  - services/realtime-service.yaml
+  - services/ai-service.yaml
+  - ingress.yaml
+  - hpa.yaml
+  - network-policies.yaml
+  - rbac.yaml
+images:
+  - name: ghcr.io/viajiamos-demo/gateway
+    newTag: latest
+  - name: ghcr.io/viajiamos-demo/booking-service
+    newTag: latest
+  - name: ghcr.io/viajiamos-demo/payment-service
+    newTag: latest
+  - name: ghcr.io/viajiamos-demo/driver-service
+    newTag: latest
+  - name: ghcr.io/viajiamos-demo/realtime-service
+    newTag: latest
+  - name: ghcr.io/viajiamos-demo/ai-service
+    newTag: latest

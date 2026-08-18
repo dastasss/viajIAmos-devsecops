@@ -1,0 +1,11 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: ai-config
+  namespace: viajiamos
+data:
+  SERVICE_NAME: "ai-service"
+  # off = heurístico (sin llaves) | ollama = LLM local | openai = LLM nube
+  AI_PROVIDER: "off"
+  AI_MODEL: "llama3.2"
+  OLLAMA_URL: "http://ollama:11434"

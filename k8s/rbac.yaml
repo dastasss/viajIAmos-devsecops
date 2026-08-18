@@ -1,0 +1,33 @@
+# RBAC mínimo: los pods solo pueden leer su propio namespace (least privilege).
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: app-sa
+  namespace: viajiamos
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: app-reader
+  namespace: viajiamos
+rules:
+  - apiGroups: [""]
+    resources: ["pods", "services", "configmaps", "secrets"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: [""]
+    resources: ["events"]
+    verbs: ["get", "list", "watch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: app-reader-binding
+  namespace: viajiamos
+subjects:
+  - kind: ServiceAccount
+    name: app-sa
+    namespace: viajiamos
+roleRef:
+  kind: Role
+  name: app-reader
+  apiGroup: rbac.authorization.k8s.io

@@ -1,0 +1,132 @@
+# ViajIAmos - GitLab CI/CD (Fase 2: GitLab + GCP/GKE)
+# Espejo de los mismos stages del GitHub Actions workflow (ci.yml).
+# Variables de CI a configurar en GitLab (Settings > CI/CD > Variables):
+#   protected/masked:
+#     GCP_SA_KEY   -> Service Account JSON (base64) con permisos de GKE
+#   variables:
+#     GCP_PROJECT_ID, GKE_CLUSTER, GKE_REGION, IMAGE_REGISTRY
+#
+# Uso: reemplaza <tu-usuario> en IMAGE_REGISTRY o configura tu propio registry.
+
+stages:
+  - test
+  - security
+  - build
+  - integration
+  - deploy
+
+variables:
+  PIP_CACHE_DIR: "$CI_PROJECT_DIR/.pip-cache"
+  IMAGE_REGISTRY: registry.gitlab.com/$CI_PROJECT_PATH
+  TRIVY_VERSION: "0.56.2"
+
+# ── STAGE 1: TEST ─────────────────────────────────────────────────────────
+test:
+  stage: test
+  image: python:3.13-slim
+  parallel:
+    matrix:
+      - SERVICE: [gateway, booking-service, payment-service, driver-service, realtime-service, ai-service]
+  script:
+    - cd services/$SERVICE
+    - pip install -q -r requirements-dev.txt
+    - pytest -q --disable-warnings
+  cache:
+    key: pip-$CI_COMMIT_REF_SLUG
+    paths:
+      - .pip-cache
+
+# ── STAGE 2: SECURITY (DevSecOps) ─────────────────────────────────────────
+gitleaks:
+  stage: security
+  image: python:3.13-slim
+  script:
+    - apt-get update -qq && apt-get install -y -qq curl tar >/dev/null
+    - curl -sSfL https://github.com/gitleaks/gitleaks/releases/download/v8.21.2/gitleaks_8.21.2_linux_x64.tar.gz | tar -xz
+    - ./gitleaks detect --source . --no-banner --exit-code 1
+  artifacts:
+    when: always
+    paths: []
+    reports:
+      secret_detection: []
+
+bandit:
+  stage: security
+  image: python:3.13-slim
+  parallel:
+    matrix:
+      - SERVICE: [gateway, booking-service, payment-service, driver-service, realtime-service, ai-service]
+  script:
+    - pip install -q bandit
+    - cd services/$SERVICE
+    - bandit -r app -f json -o bandit-report.json || true
+  artifacts:
+    when: always
+    paths:
+      - services/$SERVICE/bandit-report.json
+
+pip-audit:
+  stage: security
+  image: python:3.13-slim
+  parallel:
+    matrix:
+      - SERVICE: [gateway, booking-service, payment-service, driver-service, realtime-service, ai-service]
+  script:
+    - pip install -q pip-audit
+    - cd services/$SERVICE
+    - pip-audit -r requirements.txt --desc on
+
+# ── STAGE 3: BUILD + IMAGE SCAN ───────────────────────────────────────────
+docker-build:
+  stage: build
+  image: docker:27
+  services:
+    - docker:27-dind
+  parallel:
+    matrix:
+      - SERVICE: [gateway, booking-service, payment-service, driver-service, realtime-service, ai-service]
+  before_script:
+    - docker login -u "$CI_REGISTRY_USER" -p "$CI_REGISTRY_PASSWORD" $CI_REGISTRY
+    - apk add --no-cache curl >/dev/null
+  script:
+    - IMAGE="$IMAGE_REGISTRY/$SERVICE:$CI_COMMIT_SHA"
+    - docker build --cache-from "$IMAGE" -t "$IMAGE" -t "$IMAGE_REGISTRY/$SERVICE:latest" services/$SERVICE
+    - docker push "$IMAGE"
+    - docker push "$IMAGE_REGISTRY/$SERVICE:latest"
+    # Escaneo DevSecOps de la imagen
+    - curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh | sh -s -- -b /usr/local/bin
+    - trivy image --exit-code 1 --ignore-unfixed --severity HIGH,CRITICAL "$IMAGE"
+  only:
+    - main
+
+# ── STAGE 4: INTEGRATION ──────────────────────────────────────────────────
+integration:
+  stage: integration
+  image: docker:27
+  services:
+    - docker:27-dind
+  script:
+    - docker compose up -d --build
+    - apk add --no-cache python3 py3-pip >/dev/null
+    - pip3 install -q httpx
+    - python3 tests/smoke_test.py
+  only:
+    - main
+
+# ── STAGE 5: DEPLOY (GKE - Fase 2) ────────────────────────────────────────
+deploy-gke:
+  stage: deploy
+  image: google/cloud-sdk:latest
+  only:
+    - main
+  when: manual
+  script:
+    - echo "$GCP_SA_KEY" | base64 -d > /tmp/gcp-sa.json
+    - gcloud auth activate-service-account --key-file=/tmp/gcp-sa.json
+    - gcloud config set project "$GCP_PROJECT_ID"
+    - gcloud container clusters get-credentials "$GKE_CLUSTER" --region "$GKE_REGION" --project "$GCP_PROJECT_ID"
+    - kubectl kustomize k8s/ | sed "s|:latest|:$CI_COMMIT_SHA|g" | kubectl apply -f -
+    - kubectl rollout status deployment -n viajiamos --timeout=300s
+  environment:
+    name: gke
+    url: https://console.cloud.google.com/kubernetes/list

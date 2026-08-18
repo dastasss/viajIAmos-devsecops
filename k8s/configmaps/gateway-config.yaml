@@ -1,0 +1,12 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: gateway-config
+  namespace: viajiamos
+data:
+  SERVICE_NAME: "gateway"
+  BOOKING_SERVICE_URL: "http://booking-service:8001"
+  PAYMENT_SERVICE_URL: "http://payment-service:8002"
+  DRIVER_SERVICE_URL: "http://driver-service:8003"
+  REALTIME_SERVICE_URL: "http://realtime-service:8004"
+  AI_SERVICE_URL: "http://ai-service:8005"

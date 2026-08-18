@@ -1,0 +1,7 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: driver-config
+  namespace: viajiamos
+data:
+  SERVICE_NAME: "driver-service"

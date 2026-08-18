@@ -1,0 +1,29 @@
+# Cluster local de desarrollo (kind) para ViajIAmos.
+# Uso: kind create cluster --name viajiamos --config k8s/kind-config.yaml
+# Nota: Pod Security Admission viene habilitado por defecto (K8s 1.25+),
+# por eso el namespace puede usar pod-security.kubernetes.io/enforce: restricted.
+kind: Cluster
+apiVersion: kind.x-k8s.io/v1alpha4
+name: viajiamos
+nodes:
+  - role: control-plane
+    extraPortMappings:
+      # Ingreso HTTP hacia el ingress-nginx (puerto 80 del host)
+      - containerPort: 80
+        hostPort: 80
+        protocol: TCP
+      - containerPort: 443
+        hostPort: 443
+        protocol: TCP
+kubeadmConfigPatches:
+  - |
+    kind: ClusterConfiguration
+    metadata:
+      name: config
+    controllerManager:
+      extraArgs:
+        bind-address: 0.0.0.0
+    etcd:
+      local:
+        extraArgs:
+          listen-metrics-urls: http://0.0.0.0:2381

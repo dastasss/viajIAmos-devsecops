@@ -1,0 +1,28 @@
+# Prometheus: scrape de métricas de los microservicios de ViajIAmos.
+# En GKE, GCP Managed Prometheus (GMP) scrapea los mismos endpoints /metrics
+# sin necesidad de desplegar Prometheus: los dashboards se crean en
+# Cloud Monitoring y las alertas en Cloud Monitoring > Alerting.
+#
+# Local (opcional): docker run -p 9090:9090 -v $PWD/monitoring/prometheus.yml:/etc/prometheus/prometheus.yml prom/prometheus
+
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+rule_files:
+  - "alert-rules.yml"
+
+scrape_configs:
+  - job_name: viajiamos
+    metrics_path: /metrics
+    static_configs:
+      - targets:
+          - gateway:8000
+          - booking-service:8001
+          - payment-service:8002
+          - driver-service:8003
+          - realtime-service:8004
+          - ai-service:8005
+        labels:
+          environment: local
+          platform: viajiamos

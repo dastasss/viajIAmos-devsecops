@@ -1,0 +1,59 @@
+# Reglas de alertas por microservicio - equivalentes en GCP Cloud Monitoring:
+#   - latencia        -> distribuido de http_request_duration_seconds
+#   - tasa de errores -> contador http_errors_total / rate
+#   - disponibilidad  -> up == 0 (pod caído)
+#   - saturación      -> kube_pod_container_resource_limits vs uso (GKE metadatad)
+groups:
+  - name: viajiamos-disponibilidad
+    rules:
+      - alert: ServicioCaido
+        expr: up{job="viajiamos"} == 0
+        for: 2m
+        labels:
+          severity: critical
+          team: plataforma
+        annotations:
+          summary: "{{ $labels.instance }} no está respondiendo"
+          description: "El endpoint /metrics de {{ $labels.instance }} no responde hace 2 minutos."
+
+      - alert: PodReiniciandose
+        expr: rate(kube_pod_container_status_restarts_total{namespace="viajiamos"}[15m]) > 0.2
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Reinicios anómalos de pods"
+          description: "Un pod del namespace viajiamos se reinicia con frecuencia (posible crash loop)."
+
+  - name: viajiamos-latencia
+    rules:
+      - alert: LatenciaAlta
+        expr: histogram_quantile(0.95, sum(rate(http_request_duration_seconds_bucket{job="viajiamos"}[5m])) by (le, service)) > 2
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Latencia p95 alta en {{ $labels.service }}"
+          description: "La latencia p95 de {{ $labels.service }} supera 2s durante 5 minutos."
+
+  - name: viajiamos-errores
+    rules:
+      - alert: TasaErrorAlta
+        expr: sum(rate(http_errors_total{job="viajiamos"}[5m])) by (service) > 0.05
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Tasa de errores alta en {{ $labels.service }}"
+          description: "{{ $labels.service }} devuelve más de 5% de errores 5xx en 5 minutos."
+
+  - name: viajiamos-recursos
+    rules:
+      - alert: SaturaciónCPU
+        expr: avg(rate(container_cpu_usage_seconds_total{namespace="viajiamos"}[5m])) by (pod) / 0.5 > 0.85
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Saturación de CPU en {{ $labels.pod }}"
+          description: "Uso de CPU sostenido sobre el 85% del límite hace 10 minutos."

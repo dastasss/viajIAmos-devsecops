@@ -1,0 +1,30 @@
+# Ingress: punto de entrada HTTP externo (requiere NGINX Ingress Controller,
+# integrado en GKE). Host local de ejemplo: viajiamos.local
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: viajiamos-ingress
+  namespace: viajiamos
+  annotations:
+    nginx.ingress.kubernetes.io/proxy-connect-timeout: "10"
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "60"
+spec:
+  ingressClassName: nginx
+  rules:
+    - host: viajiamos.local
+      http:
+        paths:
+          - path: /v1
+            pathType: Prefix
+            backend:
+              service:
+                name: gateway
+                port:
+                  number: 8000
+          - path: /socket.io
+            pathType: Prefix
+            backend:
+              service:
+                name: realtime-service
+                port:
+                  number: 8004

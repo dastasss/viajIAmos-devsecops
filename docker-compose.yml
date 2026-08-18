@@ -1,0 +1,111 @@
+name: viajiamos
+
+services:
+  booking-service:
+    build: ./services/booking-service
+    image: viajiamos/booking-service:local
+    environment:
+      - SERVICE_NAME=booking-service
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8001/healthz')"]
+      interval: 5s
+      timeout: 2s
+      retries: 5
+    networks: [viajiamos-net]
+
+  payment-service:
+    build: ./services/payment-service
+    image: viajiamos/payment-service:local
+    environment:
+      - SERVICE_NAME=payment-service
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8002/healthz')"]
+      interval: 5s
+      timeout: 2s
+      retries: 5
+    networks: [viajiamos-net]
+
+  driver-service:
+    build: ./services/driver-service
+    image: viajiamos/driver-service:local
+    environment:
+      - SERVICE_NAME=driver-service
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8003/healthz')"]
+      interval: 5s
+      timeout: 2s
+      retries: 5
+    networks: [viajiamos-net]
+
+  realtime-service:
+    build: ./services/realtime-service
+    image: viajiamos/realtime-service:local
+    environment:
+      - SERVICE_NAME=realtime-service
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8004/healthz')"]
+      interval: 5s
+      timeout: 2s
+      retries: 5
+    networks: [viajiamos-net]
+
+  ai-service:
+    build: ./services/ai-service
+    image: viajiamos/ai-service:local
+    environment:
+      - SERVICE_NAME=ai-service
+      - AI_PROVIDER=${AI_PROVIDER:-off}
+      - AI_API_KEY=${AI_API_KEY:-}
+      - AI_MODEL=${AI_MODEL:-llama3.2}
+      - OLLAMA_URL=http://ollama:11434
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8005/healthz')"]
+      interval: 5s
+      timeout: 2s
+      retries: 5
+    networks: [viajiamos-net]
+
+  gateway:
+    build: ./services/gateway
+    image: viajiamos/gateway:local
+    environment:
+      - SERVICE_NAME=gateway
+      - BOOKING_SERVICE_URL=http://booking-service:8001
+      - PAYMENT_SERVICE_URL=http://payment-service:8002
+      - DRIVER_SERVICE_URL=http://driver-service:8003
+      - REALTIME_SERVICE_URL=http://realtime-service:8004
+      - AI_SERVICE_URL=http://ai-service:8005
+    ports:
+      - "8000:8000"
+    depends_on:
+      booking-service:
+        condition: service_healthy
+      payment-service:
+        condition: service_healthy
+      driver-service:
+        condition: service_healthy
+      realtime-service:
+        condition: service_healthy
+      ai-service:
+        condition: service_healthy
+    networks: [viajiamos-net]
+
+  # IA local gratuita (opcional): docker compose --profile ai-local up
+  ollama:
+    image: ollama/ollama:latest
+    profiles: ["ai-local"]
+    volumes:
+      - ollama-data:/root/.ollama
+    healthcheck:
+      test: ["CMD", "ollama", "list"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks: [viajiamos-net]
+
+volumes:
+  ollama-data:
+
+networks:
+  viajiamos-net:
+    driver: bridge

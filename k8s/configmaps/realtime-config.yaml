@@ -1,0 +1,7 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: realtime-config
+  namespace: viajiamos
+data:
+  SERVICE_NAME: "realtime-service"
