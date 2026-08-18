@@ -150,6 +150,8 @@ jobs:
         run: |
           docker compose up -d --build
           docker compose ps
+      - name: Instalar httpx (cliente del smoke test)
+        run: pip install -r services/gateway/requirements-dev.txt
       - name: Smoke test end-to-end
         run: python tests/smoke_test.py
 
