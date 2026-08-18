@@ -17,7 +17,8 @@ ENV PYTHONUNBUFFERED=1 \
     APP_USER=appuser \
     APP_HOME=/app
 
-RUN groupadd --gid 10001 appuser \
+RUN apt-get update && apt-get upgrade -y && rm -rf /var/lib/apt/lists/* \
+    && groupadd --gid 10001 appuser \
     && useradd --uid 10001 --gid appuser --shell /usr/sbin/nologin --home-dir "$APP_HOME" appuser \
     && mkdir -p "$APP_HOME" \
     && chown -R appuser:appuser "$APP_HOME"
@@ -26,7 +27,8 @@ WORKDIR $APP_HOME
 COPY --from=builder /wheels /wheels
 COPY --from=builder /build/requirements.txt ./requirements.txt
 RUN pip install --no-cache-dir --no-index --find-links=/wheels -r requirements.txt \
-    && rm -rf /wheels requirements.txt
+    && rm -rf /wheels requirements.txt \
+    && rm -rf /usr/local/lib/python3.13/site-packages/pip /usr/local/lib/python3.13/site-packages/pip-*.dist-info /usr/local/bin/pip /usr/local/bin/pip3 /usr/local/bin/pip3.13
 
 COPY --chown=appuser:appuser app ./app
 
