@@ -96,6 +96,21 @@ python tests/smoke_test.py --base http://localhost:18000   # (SMOKE_TIMEOUT=25 s
 - NetworkPolicies default-deny + RBAC de mínimo privilegio.
 - Secretos vía Kubernetes Secrets / variables protegidas de CI (nunca en repo).
 
+## AI service (destacado)
+
+El servicio de recomendaciones es **multi-proveedor con degradación automática**:
+
+| `AI_PROVIDER` | Motor | Requiere | Uso |
+|---|---|---|---|
+| `off` (default) | Heurístico determinista (rutas/tarifas CLP) | nada | demo y CI |
+| `ollama` | LLM local gratuito (`llama3.2`) | Ollama en la red | desarrollo |
+| `openai` | LLM en la nube (API compatible OpenAI) | `AI_API_KEY` vía Secret | producción |
+
+- Si el LLM falla (sin llave, timeout, error), el servicio **nunca deja de responder**:
+  degrada al heurístico y lo registra en métricas `ai_fallback_total` y logs.
+- La llave viaja como **Secret de Kubernetes** / variable protegida de CI, nunca en el repo.
+- Ver [docs/AI_SERVICE.md](docs/AI_SERVICE.md) para configuración y pruebas.
+
 ## Roadmap (Fase 2 — GitLab + GCP)
 
 1. Mirror del repo a GitLab.com y activación de `.gitlab-ci.yml`.
